@@ -28,30 +28,27 @@ local function ClearConnections()
     Connections = {}
 end
 
--- Notification
-pcall(function()
-    StarterGui:SetCore("SendNotification", {
-        Title = "Eren Suite Loaded",
-        Text = "All advanced features and engines active",
-        Duration = 2
-    })
-end)
-
--- Global Settings Setup
+----------------------------------------------------
+-- GLOBAL SETTINGS & EVENTS SETUP
+----------------------------------------------------
 getgenv().ErenSettings = getgenv().ErenSettings or {
     SpeedEnabled = false,
-    WalkSpeed = 16,
+    SpeedMode = "WalkSpeed",
+    WalkSpeedValue = 16,
+    StepsPerSecond = 20,
+    
     FlyEnabled = false,
     FlySpeed = 50,
-    InfJumpEnabled = false,
-    NoclipEnabled = false,
-    GoodModeEnabled = false,
-    ESPEnabled = false,
-    ShiftLockEnabled = false,
-    ShiftLockShowButton = false,
-    BypassActive = true,
     FlyUp = false,
-    FlyDown = false
+    FlyDown = false,
+    
+    GoodModeEnabled = false,
+    NoclipEnabled = false,
+    InfJumpEnabled = false,
+    ESPEnabled = false,
+    ShiftLockShowButton = false,
+    ShiftLockEnabled = false,
+    BypassActive = true
 }
 
 local Settings = getgenv().ErenSettings
@@ -174,9 +171,7 @@ local function ProcessGoodModeShield()
 
             if isCheckpointName or isSafeColor then
                 local dist = (part.Position - RootPart.Position).Magnitude
-                if dist < 6 then
-                    isNearCheckpoint = true
-                end
+                if dist < 6 then isNearCheckpoint = true end
             end
 
             local isRed = (color.R > 0.45 and color.G < 0.35 and color.B < 0.35) or part.BrickColor.Name:lower():find("red")
@@ -196,9 +191,7 @@ local function ProcessGoodModeShield()
             if isNearHazard and not isNearCheckpoint then
                 part.CanTouch = false
             else
-                if not Settings.NoclipEnabled then
-                    part.CanTouch = true
-                end
+                if not Settings.NoclipEnabled then part.CanTouch = true end
             end
         end
     end
@@ -367,9 +360,7 @@ local function EnforceShiftLock(deltaTime)
     if Settings.ShiftLockEnabled then
         UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
         SyncRotationSettings(true)
-        if Crosshair then
-            Crosshair.Visible = (isCameraAnimated == false)
-        end
+        if Crosshair then Crosshair.Visible = (isCameraAnimated == false) end
         
         pcall(function()
             if LocalPlayer.DevCameraOcclusionMode ~= Enum.DevCameraOcclusionMode.Invisicam then
@@ -444,23 +435,8 @@ local function ToggleShiftLock(forceState)
     end
 end
 
-local function UpdateDeviceUI(lastInputType)
-    isMobile = (lastInputType == Enum.UserInputType.Touch)
-    LocalPlayer.DevEnableMouseLock = false 
-
-    if LockButton then
-        LockButton.Visible = Settings.ShiftLockShowButton
-        if not isMobile and Settings.ShiftLockEnabled then
-            ContextActionService:BindActionAtPriority(
-                MOUSE_SINK_ACTION, handleRightClick, false, 
-                Enum.ContextActionPriority.High.Value + 100, Enum.UserInputType.MouseButton2
-            )
-        end
-    end
-end
-
 ----------------------------------------------------
--- 6. HUD OVERLAYS (STATS, BUTTONS, CROSSHAIR)
+-- 6. HUD OVERLAYS & FLY BUTTONS
 ----------------------------------------------------
 if TargetParent:FindFirstChild("ErenOverlays") then TargetParent.ErenOverlays:Destroy() end
 
@@ -469,7 +445,6 @@ OverlayGui.Name = "ErenOverlays"
 OverlayGui.ResetOnSpawn = false
 OverlayGui.Parent = TargetParent
 
--- ShiftLock Floating Button & Crosshair
 LockButton = Instance.new("ImageButton")
 LockButton.Name = "LockButton"
 LockButton.Parent = OverlayGui
@@ -497,7 +472,6 @@ Crosshair.Visible = false
 
 LockButton.MouseButton1Click:Connect(function() ToggleShiftLock() end)
 
--- Top Stats Bar (FPS | Ping | Speed)
 local StatsFrame = Instance.new("Frame")
 StatsFrame.Size = UDim2.new(0, 195, 0, 22)
 StatsFrame.Position = UDim2.new(1, -205, 0, 10)
@@ -515,7 +489,6 @@ StatsLabel.Font = Enum.Font.GothamMedium
 StatsLabel.TextSize = 10
 StatsLabel.Parent = StatsFrame
 
--- Fly On-Screen Control Buttons
 local FlyUpBtn = Instance.new("TextButton")
 FlyUpBtn.Size = UDim2.new(0, 42, 0, 42)
 FlyUpBtn.Position = UDim2.new(0.9, -45, 0.5, -45)
@@ -546,116 +519,145 @@ FlyDownBtn.MouseButton1Down:Connect(function() Settings.FlyDown = true end)
 FlyDownBtn.MouseButton1Up:Connect(function() Settings.FlyDown = false end)
 
 ----------------------------------------------------
--- 7. RAYFIELD UI INTEGRATION
+-- 7. EVENTS SYSTEM SETUP
+----------------------------------------------------
+getgenv().ErenEvents = {
+    OnFlyToggled = function(Value)
+        FlyUpBtn.Visible = Value
+        FlyDownBtn.Visible = Value
+        if not Value then StopFly() end
+    end,
+    ClearESP = function()
+        ClearESP()
+    end,
+    OnShiftLockToggled = function(Value)
+        if LockButton then LockButton.Visible = Value end
+        if not Value and Settings.ShiftLockEnabled then ToggleShiftLock(false) end
+    end
+}
+
+----------------------------------------------------
+-- 8. RAYFIELD UI INTEGRATION
 ----------------------------------------------------
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Eren Suite",
-    Subtitle = "Full Engine Master",
-    SidebarLayout = true,
-    ConfigurationSaving = { Enabled = false }
+    Name = "Eren",
+    Subtitle = "Gen2 Suite",
+    SidebarLayout = true
 })
 
-local SpeedTab = Window:CreateTab({ Name = "Speed & Walk", Icon = 0 })
-local FlightTab = Window:CreateTab({ Name = "Flight", Icon = 0 })
-local DefenseTab = Window:CreateTab({ Name = "Defense & Bypass", Icon = 0 })
-local VisualsTab = Window:CreateTab({ Name = "Visuals & ESP", Icon = 0 })
-local ShiftLockTab = Window:CreateTab({ Name = "Shift Lock", Icon = 0 })
+-- Speed Tab
+local SpeedTab = Window:CreateTab({ Name = "Speed", Icon = 0 })
 
--- Speed Tab Controls
 SpeedTab:CreateToggle({
-    Name = "Speed Boost",
+    Name = "Enable Speed",
     CurrentValue = Settings.SpeedEnabled,
-    Callback = function(v) Settings.SpeedEnabled = v end
+    Callback = function(Value) Settings.SpeedEnabled = Value end
+})
+
+SpeedTab:CreateDropdown({
+    Name = "Speed Mode",
+    Options = {"WalkSpeed", "Steps"},
+    CurrentOption = {Settings.SpeedMode},
+    MultipleOptions = false,
+    Callback = function(Option) Settings.SpeedMode = Option[1] end
 })
 
 SpeedTab:CreateSlider({
-    Name = "Walk Speed Value",
-    Range = {16, 999},
+    Name = "WalkSpeed Value",
+    Range = {16, 300},
     Increment = 1,
-    CurrentValue = Settings.WalkSpeed,
-    Callback = function(v) Settings.WalkSpeed = v end
+    CurrentValue = Settings.WalkSpeedValue,
+    Callback = function(Value) Settings.WalkSpeedValue = Value end
 })
 
-SpeedTab:CreateToggle({
-    Name = "Noclip",
-    CurrentValue = Settings.NoclipEnabled,
-    Callback = function(v) Settings.NoclipEnabled = v end
+SpeedTab:CreateSlider({
+    Name = "Steps/s Value",
+    Range = {1, 100},
+    Increment = 1,
+    CurrentValue = Settings.StepsPerSecond,
+    Callback = function(Value) Settings.StepsPerSecond = Value end
 })
 
-SpeedTab:CreateToggle({
-    Name = "Infinite Jump",
-    CurrentValue = Settings.InfJumpEnabled,
-    Callback = function(v) Settings.InfJumpEnabled = v end
-})
+-- Flight Tab
+local FlightTab = Window:CreateTab({ Name = "Flight", Icon = 0 })
 
--- Flight Tab Controls
 FlightTab:CreateToggle({
-    Name = "Fly Mode",
+    Name = "Enable Fly",
     CurrentValue = Settings.FlyEnabled,
-    Callback = function(v) 
-        Settings.FlyEnabled = v 
-        FlyUpBtn.Visible = v
-        FlyDownBtn.Visible = v
-        if not v then StopFly() end
+    Callback = function(Value)
+        Settings.FlyEnabled = Value
+        if getgenv().ErenEvents and getgenv().ErenEvents.OnFlyToggled then
+            getgenv().ErenEvents.OnFlyToggled(Value)
+        end
     end
 })
 
 FlightTab:CreateSlider({
     Name = "Fly Speed",
-    Range = {10, 500},
+    Range = {10, 300},
     Increment = 5,
     CurrentValue = Settings.FlySpeed,
-    Callback = function(v) Settings.FlySpeed = v end
+    Callback = function(Value) Settings.FlySpeed = Value end
 })
 
--- Defense Tab Controls
-DefenseTab:CreateToggle({
-    Name = "Good Mode (Dynamic Shield)",
+-- General Tab
+local GeneralTab = Window:CreateTab({ Name = "General & ESP", Icon = 0 })
+
+GeneralTab:CreateToggle({
+    Name = "Godmode",
     CurrentValue = Settings.GoodModeEnabled,
-    Callback = function(v) Settings.GoodModeEnabled = v end
+    Callback = function(Value) Settings.GoodModeEnabled = Value end
 })
 
-DefenseTab:CreateToggle({
-    Name = "Bypass Active (Anticheat Spoof)",
-    CurrentValue = Settings.BypassActive,
-    Callback = function(v) Settings.BypassActive = v end
+GeneralTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = Settings.NoclipEnabled,
+    Callback = function(Value) Settings.NoclipEnabled = Value end
 })
 
--- Visuals Tab Controls
-VisualsTab:CreateToggle({
+GeneralTab:CreateToggle({
+    Name = "Infinite Jump",
+    CurrentValue = Settings.InfJumpEnabled,
+    Callback = function(Value) Settings.InfJumpEnabled = Value end
+})
+
+GeneralTab:CreateToggle({
     Name = "Player ESP",
     CurrentValue = Settings.ESPEnabled,
-    Callback = function(v) 
-        Settings.ESPEnabled = v 
-        if not v then ClearESP() end
+    Callback = function(Value)
+        Settings.ESPEnabled = Value
+        if not Value and getgenv().ErenEvents and getgenv().ErenEvents.ClearESP then
+            getgenv().ErenEvents.ClearESP()
+        end
     end
 })
 
--- Shift Lock Tab Controls
-ShiftLockTab:CreateToggle({
-    Name = "Show Floating ShiftLock Button",
+GeneralTab:CreateToggle({
+    Name = "Shift Lock Button",
     CurrentValue = Settings.ShiftLockShowButton,
-    Callback = function(v)
-        Settings.ShiftLockShowButton = v
-        if LockButton then LockButton.Visible = v end
-        if not v and Settings.ShiftLockEnabled then ToggleShiftLock(false) end
+    Callback = function(Value)
+        Settings.ShiftLockShowButton = Value
+        if getgenv().ErenEvents and getgenv().ErenEvents.OnShiftLockToggled then
+            getgenv().ErenEvents.OnShiftLockToggled(Value)
+        end
     end
 })
 
-ShiftLockTab:CreateToggle({
-    Name = "Force Shift Lock State",
-    CurrentValue = Settings.ShiftLockEnabled,
-    Callback = function(v) ToggleShiftLock(v) end
+Rayfield:Notify({
+    Title = "Eren Loaded",
+    Content = "UI Initialized Successfully.",
+    Duration = 3
 })
 
 ----------------------------------------------------
--- 8. CORE LOOPS & REAL SPEED TRACKING
+-- 9. CORE LOOPS & ACCURATE STEP SPEED ENGINE
 ----------------------------------------------------
 local lastPos = RootPart and RootPart.Position or Vector3.zero
 local currentRealSpeed = 0
 local lastTime = os.clock()
+local stepAccumulator = 0
 
 local function SetupLoopConnections()
     table.insert(Connections, RunService.Stepped:Connect(function()
@@ -673,10 +675,23 @@ local function SetupLoopConnections()
     table.insert(Connections, RunService.RenderStepped:Connect(function(deltaTime)
         if Settings.FlyEnabled then UpdateFly() end
         
+        -- Multi-mode Speed Processing
         if Settings.SpeedEnabled and Character and Humanoid and RootPart and Humanoid.Health > 0 then
             if Humanoid.MoveDirection.Magnitude > 0 then
-                local extraSpeed = math.max(0, Settings.WalkSpeed - NaturalSpeed)
-                RootPart.CFrame = RootPart.CFrame + (Humanoid.MoveDirection * extraSpeed * deltaTime)
+                if Settings.SpeedMode == "WalkSpeed" then
+                    local extraSpeed = math.max(0, Settings.WalkSpeedValue - NaturalSpeed)
+                    RootPart.CFrame = RootPart.CFrame + (Humanoid.MoveDirection * extraSpeed * deltaTime)
+                elseif Settings.SpeedMode == "Steps" then
+                    local stepsPerSec = math.max(1, Settings.StepsPerSecond)
+                    local stepInterval = 1 / stepsPerSec
+                    local stepDistance = Settings.WalkSpeedValue / stepsPerSec
+
+                    stepAccumulator = stepAccumulator + deltaTime
+                    while stepAccumulator >= stepInterval do
+                        stepAccumulator = stepAccumulator - stepInterval
+                        RootPart.CFrame = RootPart.CFrame + (Humanoid.MoveDirection * stepDistance)
+                    end
+                end
             end
         end
 
@@ -718,7 +733,20 @@ local function SetupLoopConnections()
         end
     end))
 
-    table.insert(Connections, UserInputService.LastInputTypeChanged:Connect(UpdateDeviceUI))
+    table.insert(Connections, UserInputService.LastInputTypeChanged:Connect(function(lastInputType)
+        isMobile = (lastInputType == Enum.UserInputType.Touch)
+        LocalPlayer.DevEnableMouseLock = false 
+
+        if LockButton then
+            LockButton.Visible = Settings.ShiftLockShowButton
+            if not isMobile and Settings.ShiftLockEnabled then
+                ContextActionService:BindActionAtPriority(
+                    MOUSE_SINK_ACTION, handleRightClick, false, 
+                    Enum.ContextActionPriority.High.Value + 100, Enum.UserInputType.MouseButton2
+                )
+            end
+        end
+    end))
 end
 
 SetupLoopConnections()
@@ -728,7 +756,7 @@ local function BindCharacterEvents()
         NaturalSpeed = math.floor(Humanoid.WalkSpeed)
         table.insert(Connections, Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
             NaturalSpeed = math.floor(Humanoid.WalkSpeed)
-            if not Settings.SpeedEnabled then Settings.WalkSpeed = NaturalSpeed end
+            if not Settings.SpeedEnabled then Settings.WalkSpeedValue = NaturalSpeed end
         end))
 
         table.insert(Connections, Humanoid.HealthChanged:Connect(function(newHealth)
@@ -749,6 +777,7 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     isFlying = false
     currentTargetZoom = 12.5
     smoothedOffset = 0
+    stepAccumulator = 0
     task.wait(0.3)
     BindCharacterEvents()
     SetupLoopConnections()
