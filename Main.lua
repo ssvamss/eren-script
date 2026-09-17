@@ -31,11 +31,11 @@ end
 ----------------------------------------------------
 -- GLOBAL SETTINGS & EVENTS SETUP
 ----------------------------------------------------
-getgenv().ErenSettings = getgenv().ErenSettings or {
+getgenv().ErenSettings = {
     SpeedEnabled = false,
     SpeedMode = "WalkSpeed",
-    WalkSpeedValue = 16,
-    StepsPerSecond = 20,
+    WalkSpeedValue = 999,
+    StepsPerSecond = 100,
     
     FlyEnabled = false,
     FlySpeed = 50,
@@ -561,7 +561,13 @@ SpeedTab:CreateDropdown({
     Options = {"WalkSpeed", "Steps"},
     CurrentOption = {Settings.SpeedMode},
     MultipleOptions = false,
-    Callback = function(Option) Settings.SpeedMode = Option[1] end
+    Callback = function(Option)
+        if typeof(Option) == "table" then
+            Settings.SpeedMode = Option[1]
+        else
+            Settings.SpeedMode = Option
+        end
+    end
 })
 
 SpeedTab:CreateSlider({
@@ -682,14 +688,16 @@ local function SetupLoopConnections()
                     local extraSpeed = math.max(0, Settings.WalkSpeedValue - NaturalSpeed)
                     RootPart.CFrame = RootPart.CFrame + (Humanoid.MoveDirection * extraSpeed * deltaTime)
                 elseif Settings.SpeedMode == "Steps" then
-                    local stepsPerSec = math.max(1, Settings.StepsPerSecond)
+                    local stepsPerSec = math.clamp(Settings.StepsPerSecond, 1, 999)
                     local stepInterval = 1 / stepsPerSec
                     local stepDistance = Settings.WalkSpeedValue / stepsPerSec
 
                     stepAccumulator = stepAccumulator + deltaTime
-                    while stepAccumulator >= stepInterval do
-                        stepAccumulator = stepAccumulator - stepInterval
-                        RootPart.CFrame = RootPart.CFrame + (Humanoid.MoveDirection * stepDistance)
+                    local stepsToTake = math.floor(stepAccumulator / stepInterval)
+                    if stepsToTake > 0 then
+                        stepAccumulator = stepAccumulator - (stepsToTake * stepInterval)
+                        stepsToTake = math.min(stepsToTake, 10)
+                        RootPart.CFrame = RootPart.CFrame + (Humanoid.MoveDirection * stepDistance * stepsToTake)
                     end
                 end
             end
