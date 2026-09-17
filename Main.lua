@@ -566,7 +566,7 @@ SpeedTab:CreateDropdown({
 
 SpeedTab:CreateSlider({
     Name = "WalkSpeed Value",
-    Range = {16, 300},
+    Range = {16, 999},
     Increment = 1,
     CurrentValue = Settings.WalkSpeedValue,
     Callback = function(Value) Settings.WalkSpeedValue = Value end
@@ -574,7 +574,7 @@ SpeedTab:CreateSlider({
 
 SpeedTab:CreateSlider({
     Name = "Steps/s Value",
-    Range = {1, 100},
+    Range = {1, 999},
     Increment = 1,
     CurrentValue = Settings.StepsPerSecond,
     Callback = function(Value) Settings.StepsPerSecond = Value end
@@ -596,7 +596,7 @@ FlightTab:CreateToggle({
 
 FlightTab:CreateSlider({
     Name = "Fly Speed",
-    Range = {10, 300},
+    Range = {10, 500},
     Increment = 5,
     CurrentValue = Settings.FlySpeed,
     Callback = function(Value) Settings.FlySpeed = Value end
